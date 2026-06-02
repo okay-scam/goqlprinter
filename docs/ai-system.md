@@ -15,7 +15,8 @@
 
 ## Architecture Patterns
 
-- **Strategy:** `Backend` + `BackendProvider` interfaces abstract USB vs native communication
+- **Strategy:** `Backend` + `BackendProvider` interfaces abstract USB, native, and network (TCP) communication
+- **Composite:** `CompositeProvider` merges primary discovery with `app.printers` network entries
 - **DI:** `api.Handlers` struct holds `PrinterService`, `FontService`, `Config`
 - **Mutex:** `services.PrinterLock` serializes all printer access
 - **Handler func:** `PrinterHandler = func(backend, model) error` passed to `ConnectToPrinter()`
@@ -41,7 +42,7 @@ Platform files:
 
 ```
 main() → cmd.Execute() → root.PersistentPreRun:
-  logger.Init → config.Load → selectBackend(auto|usb|native)
+  logger.Init → config.Load → selectBackend(auto|usb|native|network)
   → InitializeDefaultPrinter
 serve subcommand:
   → setupGinRouter → embed frontend

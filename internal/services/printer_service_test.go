@@ -66,20 +66,46 @@ func TestFindPrinters_WithPrinters(t *testing.T) {
 
 	cases := []struct {
 		idx           int
+		expectedName  string
 		expectedModel string
 		expectedUID   string
 	}{
-		{0, "QL-700", "usb:001:001"},
-		{1, "QL-800", "usb:001:002"},
+		{0, "QL-700 (USB)", "QL-700", "usb:001:001"},
+		{1, "QL-800 (USB)", "QL-800", "usb:001:002"},
 	}
 	for _, tc := range cases {
 		p := found[tc.idx]
+		if p.Name != tc.expectedName {
+			t.Errorf("printer[%d].Name = %q, want %q", tc.idx, p.Name, tc.expectedName)
+		}
 		if p.Model != tc.expectedModel {
 			t.Errorf("printer[%d].Model = %q, want %q", tc.idx, p.Model, tc.expectedModel)
 		}
 		if p.UID != tc.expectedUID {
 			t.Errorf("printer[%d].UID = %q, want %q", tc.idx, p.UID, tc.expectedUID)
 		}
+	}
+}
+
+func TestFindPrinters_NetworkDefaultLabel(t *testing.T) {
+	t.Parallel()
+
+	provider := &mockProvider{
+		printers: []brotherql.PrinterInfo{
+			{Name: "Ward-A", Model: "QL-820NWB", URI: "tcp://192.168.1.10:9100", Backend: brotherql.BackendNetwork, DefaultLabel: "62"},
+		},
+	}
+	svc := services.NewPrinterService(provider)
+
+	found, err := svc.FindPrinters()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(found) != 1 {
+		t.Fatalf("expected 1 printer, got %d", len(found))
+	}
+	if found[0].DefaultLabel != "62" {
+		t.Errorf("DefaultLabel = %q, want 62", found[0].DefaultLabel)
 	}
 }
 
@@ -162,6 +188,26 @@ func TestResolvePrinter_ByModel(t *testing.T) {
 	}
 }
 
+func TestResolvePrinter_ByName(t *testing.T) {
+	t.Parallel()
+
+	provider := &mockProvider{
+		printers: []brotherql.PrinterInfo{
+			{Name: "Ward-A", Model: "QL-820NWB", URI: "tcp://192.168.1.10:9100", Backend: brotherql.BackendNetwork},
+			{Name: "Ward-B", Model: "QL-820NWB", URI: "tcp://192.168.1.11:9100", Backend: brotherql.BackendNetwork},
+		},
+	}
+	svc := services.NewPrinterService(provider)
+
+	got, err := svc.ResolvePrinter("Ward-B")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.UID != "tcp://192.168.1.11:9100" {
+		t.Errorf("UID = %q, want tcp://192.168.1.11:9100", got.UID)
+	}
+}
+
 func TestResolvePrinter_NotFound(t *testing.T) {
 	t.Parallel()
 
@@ -218,7 +264,28 @@ func TestInitializeDefaultPrinter_SetsFirst(t *testing.T) {
 	}
 }
 
-func TestInitializeDefaultPrinter_SetsConfigured(t *testing.T) {
+func TestInitializeDefaultPrinter_SetsConfiguredByName(t *testing.T) {
+	t.Parallel()
+
+	provider := &mockProvider{
+		printers: []brotherql.PrinterInfo{
+			{Name: "Ward-A", Model: "QL-820NWB", URI: "tcp://192.168.1.10:9100", Backend: brotherql.BackendNetwork},
+			{Name: "Ward-B", Model: "QL-820NWB", URI: "tcp://192.168.1.11:9100", Backend: brotherql.BackendNetwork},
+		},
+	}
+	svc := services.NewPrinterService(provider)
+	svc.InitializeDefaultPrinter("Ward-B")
+
+	def := svc.GetDefaultPrinter()
+	if def == nil {
+		t.Fatal("expected a default printer to be set")
+	}
+	if def.Name != "Ward-B" {
+		t.Errorf("expected Ward-B, got %q", def.Name)
+	}
+}
+
+func TestInitializeDefaultPrinter_SetsConfiguredByModel(t *testing.T) {
 	t.Parallel()
 
 	provider := &mockProvider{

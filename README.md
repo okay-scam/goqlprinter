@@ -120,6 +120,37 @@ Example `config.json`:
 }
 ```
 
+### Network printers (TCP port 9100)
+
+For WiFi/Ethernet Brother QL printers—or when running in Docker without USB device access—configure printers by IP. Raster data is sent over raw TCP (same as [brother_ql](https://github.com/pklaus/brother_ql) `tcp://host:9100`).
+
+Set `app.backend` to `network` for IP-only deployments, or keep `auto`/`native`/`usb` and add `app.printers` to merge configured network printers with locally discovered USB/OS printers.
+
+```json
+{
+  "app": {
+    "backend": "auto",
+    "default_printer": "Ward-A",
+    "printers": [
+      { "name": "Ward-A", "host": "192.168.1.10", "model": "QL-820NWB", "label": "62" },
+      { "name": "Ward-B", "host": "192.168.1.11", "model": "QL-820NWB", "label": "62x29" }
+    ]
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `name` | Unique display name (used in UI and `default_printer`) |
+| `host` | IP address or hostname |
+| `port` | TCP port (default `9100`) |
+| `model` | Brother model id (e.g. `QL-820NWB`) |
+| `label` | Optional default label size id (e.g. `62`) |
+
+Printer IDs in the API use `tcp://host:port` URIs. `socket://` is accepted as an alias.
+
+**Limitations:** The network backend is write-only. `/api/status` and live media detection do not work over TCP; printing still works. Post-print status checks log a warning and continue.
+
 ## CLI Usage
 
 ```bash

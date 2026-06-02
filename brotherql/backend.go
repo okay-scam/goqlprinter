@@ -35,16 +35,18 @@ type PrinterStatus struct {
 type BackendType string
 
 const (
-	BackendUSB    BackendType = "usb"    // gousb/libusb (CGO)
-	BackendNative BackendType = "native" // OS native (Pure Go)
+	BackendUSB     BackendType = "usb"     // gousb/libusb (CGO)
+	BackendNative  BackendType = "native"  // OS native (Pure Go)
+	BackendNetwork BackendType = "network" // TCP raw port (typically 9100)
 )
 
 // PrinterInfo contains discovered printer information
 type PrinterInfo struct {
-	Name    string      // Display name
-	Model   string      // "QL-570", "QL-800", etc.
-	URI     string      // Connection identifier
-	Backend BackendType // Which backend found it
+	Name         string      // Display name
+	Model        string      // "QL-570", "QL-800", etc.
+	URI          string      // Connection identifier
+	Backend      BackendType // Which backend found it
+	DefaultLabel string      // Optional default label size id (network config)
 }
 
 // BackendProvider creates backend connections

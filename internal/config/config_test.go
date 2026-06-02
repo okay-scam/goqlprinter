@@ -64,6 +64,38 @@ func TestLoadConfig_FontDirsDefault(t *testing.T) {
 	}
 }
 
+func TestValidate_NetworkBackendRequiresPrinters(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		App: config.AppConfig{
+			Backend: "network",
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for network backend without printers")
+	}
+}
+
+func TestValidate_NetworkPrinterEntry(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		App: config.AppConfig{
+			Printers: []config.ConfiguredPrinter{
+				{Name: "p1", Host: "192.168.0.1", Model: "QL-800", Label: "62"},
+			},
+		},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	net := cfg.App.NetworkPrinters()
+	if len(net) != 1 || net[0].Name != "p1" {
+		t.Fatalf("NetworkPrinters() = %+v", net)
+	}
+}
+
 func TestLoadConfig_IsIndependent(t *testing.T) {
 	t.Parallel()
 

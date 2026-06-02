@@ -11,8 +11,7 @@ import (
 	"goqlprinter/brotherql"
 )
 
-// ConnectToPrinter handles USB printer connection using gousb.
-// It uses the PrinterService to resolve the printer identifier.
+// ConnectToPrinter handles printer connection using gousb or the network provider.
 func ConnectToPrinter(svc *PrinterService, printerIdentifier, modelOverride string, handler PrinterHandler) error {
 	printerLock.Lock()
 	defer printerLock.Unlock()
@@ -22,13 +21,14 @@ func ConnectToPrinter(svc *PrinterService, printerIdentifier, modelOverride stri
 		return err
 	}
 
+	if isNetworkURI(resolvedPrinter.UID) {
+		return connectViaProvider(svc, printerIdentifier, modelOverride, handler)
+	}
+
 	if modelToUse == "" {
 		return fmt.Errorf("printer model not specified")
 	}
 
-	// Look up the USB product ID from the model name.
-	// This is more reliable than bus/address which can change on macOS
-	// when kernel drivers are detached/reattached.
 	productID, ok := brotherql.PrinterProductIDs[resolvedPrinter.Model]
 	if !ok {
 		return fmt.Errorf("unknown printer model: %s", resolvedPrinter.Model)

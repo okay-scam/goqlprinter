@@ -9,6 +9,8 @@
 - Pad raster rows to full `RasterWidthBytes` (90 or 162)
 - Handle `printer: "file"` for debug output to `debug_output/`
 - Use `Backend` interface, never concrete types in handlers
+- Use `BackendProvider.Connect` for `tcp://` / `socket://` printers (network backend)
+- Configure IP printers via `app.printers` in config; unique `name` per entry for multi-printer
 - Use `crypto/subtle.ConstantTimeCompare` for token comparison
 
 **MUST NOT:**
@@ -18,6 +20,7 @@
 - Import `gousb` without `//go:build usb` tag
 - Hardcode raster width (varies by model: 90 vs 162)
 - Expose `server.token` in JSON responses
+- Expect bidirectional status (`ESC i S`) on network TCP backends (write-only)
 
 ## Protocol Sequence
 

@@ -104,7 +104,7 @@ export function usePrintJob({
       settings.heightMode === "manual" ? settings.customHeightMM : 0;
     let payload: Record<string, unknown> = {
       printer: settings.selectedPrinter.id,
-      model: settings.selectedPrinter.name,
+      model: settings.selectedPrinter.model,
       label_size: settings.selectedLabelSize,
       ...(customHeight > 0 && { custom_height_mm: customHeight }),
     };

@@ -26,10 +26,20 @@ type ServerConfig struct {
 	Token    string `mapstructure:"token" json:"-"`
 }
 
+// ConfiguredPrinter describes a network-accessible printer in config.
+type ConfiguredPrinter struct {
+	Name  string `mapstructure:"name"`
+	Host  string `mapstructure:"host"`
+	Port  int    `mapstructure:"port"`
+	Model string `mapstructure:"model"`
+	Label string `mapstructure:"label"`
+}
+
 type AppConfig struct {
-	Backend        string   `mapstructure:"backend"`
-	DefaultPrinter string   `mapstructure:"default_printer"`
-	FontDirs       []string `mapstructure:"font_dirs"`
+	Backend        string              `mapstructure:"backend"`
+	DefaultPrinter string              `mapstructure:"default_printer"`
+	FontDirs       []string            `mapstructure:"font_dirs"`
+	Printers       []ConfiguredPrinter `mapstructure:"printers"`
 }
 
 // getDefaultFontDirs returns OS-appropriate font directories
@@ -109,6 +119,10 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	logConfigSources(v, &cfg)
 	return &cfg, nil
 }
@@ -128,6 +142,7 @@ func logConfigSources(v *viper.Viper, cfg *Config) {
 	logConfigValue(v, "app.backend", cfg.App.Backend)
 	logConfigValue(v, "app.default_printer", cfg.App.DefaultPrinter)
 	slog.Info("Configuration value", "key", "app.font_dirs", "value", cfg.App.FontDirs)
+	slog.Info("Configuration value", "key", "app.printers", "value", fmt.Sprintf("%d configured", len(cfg.App.Printers)))
 }
 
 func logConfigValue(v *viper.Viper, key string, value string) {

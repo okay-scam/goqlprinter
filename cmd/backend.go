@@ -9,19 +9,37 @@ import (
 
 // InitBackendProvider selects and initializes the appropriate backend provider.
 func InitBackendProvider(cfg *icfg.Config) brotherql.BackendProvider {
+	network := brotherql.NewNetworkProvider(cfg.App.NetworkPrinters())
+
+	var primary brotherql.BackendProvider
 	switch cfg.App.Backend {
+	case "network":
+		slog.Info("Using network backend (TCP)")
+		return wrapComposite(nil, network, cfg)
 	case "usb":
 		slog.Info("Using USB backend (gousb/libusb)")
-		return initUSBProvider()
+		primary = initUSBProvider()
 	case "native":
 		slog.Info("Using native OS backend")
-		return brotherql.NewNativeProvider()
+		primary = brotherql.NewNativeProvider()
 	case "auto":
-		return autoDetectProvider()
+		primary = autoDetectProvider()
 	default:
 		slog.Warn("Unknown backend, falling back to auto mode", "backend", cfg.App.Backend)
-		return autoDetectProvider()
+		primary = autoDetectProvider()
 	}
+	return wrapComposite(primary, network, cfg)
+}
+
+func wrapComposite(primary brotherql.BackendProvider, network *brotherql.NetworkProvider, cfg *icfg.Config) brotherql.BackendProvider {
+	if len(cfg.App.Printers) == 0 {
+		if primary != nil {
+			return primary
+		}
+		return network
+	}
+	slog.Info("Merging configured network printers", "count", len(cfg.App.Printers))
+	return brotherql.NewCompositeProvider(primary, network)
 }
 
 func autoDetectProvider() brotherql.BackendProvider {

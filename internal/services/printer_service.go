@@ -11,11 +11,11 @@ import (
 )
 
 // FoundPrinter holds information about a discovered printer.
-// JSON tags match the frontend LabelPrinter interface (name/id),
-// while Go fields use domain terminology (Model/UID).
 type FoundPrinter struct {
-	Model string `json:"name"` // printer model (e.g. "QL-800"); JSON "name" matches frontend API
-	UID   string `json:"id"`   // connection URI (e.g. "usb:001:005"); JSON "id" matches frontend API
+	Name         string `json:"name"`
+	Model        string `json:"model"`
+	UID          string `json:"id"`
+	DefaultLabel string `json:"default_label_size,omitempty"`
 }
 
 // PrinterService manages printer discovery and connection, with all state encapsulated.
@@ -42,23 +42,19 @@ func (s *PrinterService) InitializeDefaultPrinter(configuredName string) {
 		return
 	}
 
-	// 1. Try to find the printer from config
 	if configuredName != "" {
-		for _, p := range printers {
-			if p.Model == configuredName {
-				slog.Info("Default printer set from config", "model", p.Model, "uid", p.UID)
-				s.mu.Lock()
-				s.defaultPrinter = &p
-				s.mu.Unlock()
-				return
-			}
+		if p, ok := matchConfiguredPrinter(printers, configuredName); ok {
+			slog.Info("Default printer set from config", "name", p.Name, "model", p.Model, "uid", p.UID)
+			s.mu.Lock()
+			s.defaultPrinter = &p
+			s.mu.Unlock()
+			return
 		}
 		slog.Warn("Configured default printer not found, falling back to first available", "configured", configuredName)
 	}
 
-	// 2. Fallback: use the first available printer
 	p := printers[0]
-	slog.Info("Default printer set to first available", "model", p.Model, "uid", p.UID)
+	slog.Info("Default printer set to first available", "name", p.Name, "model", p.Model, "uid", p.UID)
 	s.mu.Lock()
 	s.defaultPrinter = &p
 	s.mu.Unlock()
@@ -78,18 +74,24 @@ func (s *PrinterService) FindPrinters() ([]FoundPrinter, error) {
 
 	foundPrinters := make([]FoundPrinter, 0, len(printerInfos))
 	for _, info := range printerInfos {
+		name := info.Name
+		if name == "" {
+			name = info.Model
+		}
 		foundPrinter := FoundPrinter{
-			Model: info.Model,
-			UID:   info.URI,
+			Name:         name,
+			Model:        info.Model,
+			UID:          info.URI,
+			DefaultLabel: info.DefaultLabel,
 		}
 		foundPrinters = append(foundPrinters, foundPrinter)
-		slog.Debug("Found printer", "model", info.Model, "uri", info.URI, "backend", info.Backend)
+		slog.Debug("Found printer", "name", name, "model", info.Model, "uri", info.URI, "backend", info.Backend)
 	}
 
 	return foundPrinters, nil
 }
 
-// ResolvePrinter finds a printer by identifier (name or UID). Empty → default.
+// ResolvePrinter finds a printer by identifier (name, id, or model). Empty → default.
 func (s *PrinterService) ResolvePrinter(identifier string) (FoundPrinter, error) {
 	if identifier == "" {
 		s.mu.Lock()
@@ -101,62 +103,55 @@ func (s *PrinterService) ResolvePrinter(identifier string) (FoundPrinter, error)
 		return FoundPrinter{}, errors.New("no printer specified and no default printer is configured or connected")
 	}
 
-	// Check if identifier looks like a URI (USB backend or native /dev/ path)
-	if strings.HasPrefix(identifier, "usb:") || strings.HasPrefix(identifier, "/dev/") {
+	if isPrinterURI(identifier) {
 		printers, _ := s.FindPrinters()
 		for _, p := range printers {
 			if p.UID == identifier {
 				return p, nil
 			}
 		}
-		// Can't find model, but can still try to print.
-		return FoundPrinter{UID: identifier, Model: "Unknown"}, nil
+		return FoundPrinter{UID: identifier, Model: "Unknown", Name: "Unknown"}, nil
 	}
 
-	// Assume identifier is a model name
 	printers, err := s.FindPrinters()
 	if err != nil {
 		return FoundPrinter{}, fmt.Errorf("could not list printers to resolve name '%s': %w", identifier, err)
 	}
 
-	for _, p := range printers {
-		if p.Model == identifier {
-			return p, nil
-		}
+	if p, ok := matchConfiguredPrinter(printers, identifier); ok {
+		return p, nil
 	}
 
-	return FoundPrinter{}, fmt.Errorf("printer with name '%s' not found", identifier)
+	return FoundPrinter{}, fmt.Errorf("printer '%s' not found", identifier)
 }
 
-// RefreshDefaultPrinter updates the default printer's URI if the same model
+// RefreshDefaultPrinter updates the default printer if the same logical printer
 // reappeared at a different address (common on Linux where /dev/usb/lp* changes).
-// If the default printer's model is no longer found, it clears the default.
 func (s *PrinterService) RefreshDefaultPrinter(currentPrinters []FoundPrinter) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.defaultPrinter == nil {
-		// No default set — pick first available if any
 		if len(currentPrinters) > 0 {
 			p := currentPrinters[0]
 			s.defaultPrinter = &p
-			slog.Info("Default printer set to first available", "model", p.Model, "uid", p.UID)
+			slog.Info("Default printer set to first available", "name", p.Name, "model", p.Model, "uid", p.UID)
 		}
 		return
 	}
 
+	key := defaultPrinterKey(*s.defaultPrinter)
 	for _, p := range currentPrinters {
-		if p.Model == s.defaultPrinter.Model {
+		if defaultPrinterKey(p) == key || p.Name == s.defaultPrinter.Name {
 			if p.UID != s.defaultPrinter.UID {
-				slog.Info("Default printer URI updated", "model", p.Model, "old", s.defaultPrinter.UID, "new", p.UID)
+				slog.Info("Default printer URI updated", "name", p.Name, "old", s.defaultPrinter.UID, "new", p.UID)
 			}
 			s.defaultPrinter = &p
 			return
 		}
 	}
 
-	// Model no longer found
-	slog.Warn("Default printer no longer available", "model", s.defaultPrinter.Model)
+	slog.Warn("Default printer no longer available", "name", s.defaultPrinter.Name, "model", s.defaultPrinter.Model)
 	s.defaultPrinter = nil
 }
 
@@ -165,4 +160,27 @@ func (s *PrinterService) GetDefaultPrinter() *FoundPrinter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.defaultPrinter
+}
+
+func isPrinterURI(identifier string) bool {
+	return strings.HasPrefix(identifier, "usb:") ||
+		strings.HasPrefix(identifier, "/dev/") ||
+		strings.HasPrefix(identifier, "tcp://") ||
+		strings.HasPrefix(identifier, "socket://")
+}
+
+func matchConfiguredPrinter(printers []FoundPrinter, identifier string) (FoundPrinter, bool) {
+	for _, p := range printers {
+		if p.Name == identifier || p.UID == identifier || p.Model == identifier {
+			return p, true
+		}
+	}
+	return FoundPrinter{}, false
+}
+
+func defaultPrinterKey(p FoundPrinter) string {
+	if p.UID != "" {
+		return p.UID
+	}
+	return p.Name
 }

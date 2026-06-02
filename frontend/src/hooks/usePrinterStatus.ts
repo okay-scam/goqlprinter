@@ -9,6 +9,8 @@ import { useSSE } from "./useSSE";
 export interface PrinterInfo {
   id: string;
   name: string;
+  model: string;
+  default_label_size?: string;
 }
 
 export interface LabelStatus {

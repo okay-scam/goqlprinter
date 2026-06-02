@@ -3,7 +3,12 @@ import { apiGet, apiPost } from "./client";
 // Types
 
 interface PrinterListResponse {
-  printers: { id: string; name: string }[];
+  printers: {
+    id: string;
+    name: string;
+    model: string;
+    default_label_size?: string;
+  }[];
 }
 
 interface LabelSizeResponse {
