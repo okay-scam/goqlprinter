@@ -8,12 +8,12 @@ import (
 	"goqlprinter/brotherql"
 )
 
-func isNetworkURI(uid string) bool {
+func IsNetworkURI(uid string) bool {
 	return strings.HasPrefix(uid, "tcp://") || strings.HasPrefix(uid, "socket://")
 }
 
 func backendTypeForUID(uid string) brotherql.BackendType {
-	if isNetworkURI(uid) {
+	if IsNetworkURI(uid) {
 		return brotherql.BackendNetwork
 	}
 	if strings.HasPrefix(uid, "usb:") {

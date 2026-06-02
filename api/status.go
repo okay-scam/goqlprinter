@@ -46,6 +46,24 @@ func (h *Handlers) GetStatus(c *gin.Context) {
 		return
 	}
 
+	resolved, err := h.Printers.ResolvePrinter(req.Printer)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if services.IsNetworkURI(resolved.UID) {
+		c.JSON(http.StatusOK, StatusResponse{
+			Status: brotherql.PrinterStatus{
+				ModelName:  resolved.Model,
+				StatusType: "Network",
+				PhaseType:  "Status unavailable (network printer)",
+				Errors:     []string{},
+			},
+		})
+		return
+	}
+
 	statusCh := make(chan StatusResponse, 1)
 
 	if err := services.ConnectToPrinter(h.Printers, req.Printer, "", func(backend brotherql.Backend, model string) error {

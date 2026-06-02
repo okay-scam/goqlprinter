@@ -1,7 +1,7 @@
 import { Printer, Wifi, WifiOff, AlertCircle, ChevronDown, RefreshCw } from "lucide-react";
 import { DarkModeToggle } from "./DarkModeToggle";
 
-export type PrinterStatusKind = "ready" | "busy" | "error" | "offline" | "file";
+export type PrinterStatusKind = "ready" | "busy" | "error" | "offline" | "file" | "network";
 
 interface PrinterStatusBarProps {
   printerName: string;
@@ -57,6 +57,12 @@ const statusConfig: Record<PrinterStatusKind, {
     className: "text-zinc-500 dark:text-zinc-400",
     dotClassName: "bg-zinc-400",
     label: "File",
+  },
+  network: {
+    icon: Wifi,
+    className: "text-sky-600 dark:text-sky-400",
+    dotClassName: "bg-sky-500",
+    label: "Network",
   },
 };
 

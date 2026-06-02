@@ -21,7 +21,7 @@ func ConnectToPrinter(svc *PrinterService, printerIdentifier, modelOverride stri
 		return err
 	}
 
-	if isNetworkURI(resolvedPrinter.UID) {
+	if IsNetworkURI(resolvedPrinter.UID) {
 		return connectViaProvider(svc, printerIdentifier, modelOverride, handler)
 	}
 

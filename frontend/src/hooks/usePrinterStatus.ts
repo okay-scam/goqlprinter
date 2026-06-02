@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { PrinterStatusKind } from "../components/PrinterStatusBar";
 import { printerApi } from "../api/endpoints";
 import { FILE_PRINTER } from "../constants";
-import { normalizePrinter, type PrinterInfo } from "../types/printer";
+import { isNetworkPrinter, normalizePrinter, type PrinterInfo } from "../types/printer";
 import { useSSE } from "./useSSE";
 
 export type { PrinterInfo };
@@ -70,12 +70,25 @@ function detectLabelSizeFromStatus(status: LabelStatus): string | null {
   return map[`${width}x${length}`] || null;
 }
 
+function applyDefaultLabelSize(
+  printer: PrinterInfo,
+  settingsMode: "auto" | "manual" | undefined,
+  onLabelSizeChange: ((size: { id: string }) => void) | undefined,
+) {
+  if (settingsMode === "auto" && onLabelSizeChange && printer.default_label_size) {
+    onLabelSizeChange({ id: printer.default_label_size });
+  }
+}
+
 function resolveStatus(
   printerId: string,
   labelStatus: LabelStatus | null,
   error: string | null,
 ): { kind: PrinterStatusKind; detail?: string } {
   if (printerId === "file") return { kind: "file" };
+  if (isNetworkPrinter(printerId)) {
+    return { kind: "network", detail: "Status unavailable (network printer)" };
+  }
   if (error) return { kind: "error", detail: error };
   if (labelStatus?.errors && labelStatus.errors.length > 0)
     return { kind: "error", detail: labelStatus.errors.join(", ") };
@@ -138,12 +151,17 @@ export function usePrinterStatus(
 
     if (saved.id || saved.name) {
       const byId = list.find((p) => p.id === saved.id);
-      if (byId) { onSelectPrinter(byId); return; }
+      if (byId) {
+        onSelectPrinter(byId);
+        applyDefaultLabelSize(byId, settingsMode, onLabelSizeChange);
+        return;
+      }
 
       const byName = saved.name ? list.find((p) => p.name === saved.name) : null;
       if (byName) {
         onSelectPrinter(byName);
         savePrinterToStorage(byName.id, byName.name);
+        applyDefaultLabelSize(byName, settingsMode, onLabelSizeChange);
         return;
       }
     }
@@ -151,10 +169,11 @@ export function usePrinterStatus(
     if (list.length > 0) {
       onSelectPrinter(list[0]);
       savePrinterToStorage(list[0].id, list[0].name);
+      applyDefaultLabelSize(list[0], settingsMode, onLabelSizeChange);
     } else {
       onSelectPrinter(FILE_PRINTER);
     }
-  }, [onSelectPrinter]);
+  }, [onSelectPrinter, settingsMode, onLabelSizeChange]);
 
   const refreshPrinters = useCallback(async () => {
     try {
@@ -180,6 +199,11 @@ export function usePrinterStatus(
       setLabelStatus(null);
       return;
     }
+    if (isNetworkPrinter(selectedPrinter.id)) {
+      setLabelStatus(null);
+      setError(null);
+      return;
+    }
     try {
       const data = await printerApi.status({ printer: selectedPrinter.id });
       setError(null);
@@ -202,7 +226,9 @@ export function usePrinterStatus(
     onSelectPrinter(printer);
     savePrinterToStorage(printer.id, printer.name);
     setLabelStatus(null);
-  }, [printers, onSelectPrinter]);
+    setError(null);
+    applyDefaultLabelSize(printer, settingsMode, onLabelSizeChange);
+  }, [printers, onSelectPrinter, settingsMode, onLabelSizeChange]);
 
   const refresh = useCallback(() => {
     if (refreshDebounced) return;
@@ -275,6 +301,7 @@ export function usePrinterStatus(
             // Printer returned at new address
             onSelectPrinter(backByName);
             savePrinterToStorage(backByName.id, backByName.name);
+            applyDefaultLabelSize(backByName, settingsMode, onLabelSizeChange);
           }
         }
       },

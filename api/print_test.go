@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
+	"goqlprinter/brotherql"
 )
 
 // createTestPNGBase64 creates a minimal valid 1x1 white PNG and returns base64-encoded data.
@@ -312,6 +314,29 @@ func TestGetStatus_InvalidJSON(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestGetStatus_NetworkPrinter(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHandlers([]brotherql.PrinterInfo{
+		{Name: "Ward-A", Model: "QL-820NWB", URI: "tcp://192.168.1.10:9100", Backend: brotherql.BackendNetwork},
+	})
+	r := gin.New()
+	r.POST("/api/status", h.GetStatus)
+
+	body := `{"printer":"tcp://192.168.1.10:9100"}`
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/status", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "Status unavailable (network printer)") {
+		t.Errorf("expected network status message in response, got: %s", w.Body.String())
 	}
 }
 
