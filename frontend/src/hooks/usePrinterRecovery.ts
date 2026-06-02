@@ -1,11 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { printerApi } from '../api/endpoints';
 import { FILE_PRINTER } from '../constants';
-
-export interface PrinterInfo {
-  id: string;
-  name: string;
-}
+import { normalizePrinter, type PrinterInfo } from '../types/printer';
 
 export const STORAGE_KEY = "selectedPrinter";
 export const PRINTER_NAME_KEY = "selectedPrinterName";
@@ -53,8 +49,8 @@ export const usePrinterRecovery = () => {
   const checkPrinterAvailable = useCallback(async (printerId: string): Promise<boolean> => {
     try {
       const data = await printerApi.list();
-      const printersList = data.printers || [];
-      return printersList.some((p: PrinterInfo) => p.id === printerId);
+      const printersList = (data.printers || []).map((p) => normalizePrinter(p));
+      return printersList.some((p) => p.id === printerId);
     } catch {
       return false;
     }
@@ -80,10 +76,9 @@ export const usePrinterRecovery = () => {
 
       // Get available printers first to check by both ID and name
       const data = await printerApi.list();
-      const printersList = data.printers || [];
-      
-      // First try to find by exact ID
-      const exactPrinter = printersList.find((p: PrinterInfo) => p.id === savedPrinterId);
+      const printersList = (data.printers || []).map((p) => normalizePrinter(p));
+
+      const exactPrinter = printersList.find((p) => p.id === savedPrinterId);
       
       if (exactPrinter && onRecovered) {
         onRecovered(exactPrinter);
@@ -95,8 +90,8 @@ export const usePrinterRecovery = () => {
       
       // If not found by ID, try to find by name (for USB address changes)
       if (savedPrinterName && savedPrinterName !== FILE_PRINTER.name) {
-        const printerByName = printersList.find((p: PrinterInfo) => 
-          p.name === savedPrinterName && p.id !== FILE_PRINTER.id
+        const printerByName = printersList.find(
+          (p) => p.name === savedPrinterName && p.id !== FILE_PRINTER.id,
         );
         
         if (printerByName && onRecovered) {

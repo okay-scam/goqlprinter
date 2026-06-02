@@ -2,16 +2,10 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { PrinterStatusKind } from "../components/PrinterStatusBar";
 import { printerApi } from "../api/endpoints";
 import { FILE_PRINTER } from "../constants";
+import { normalizePrinter, type PrinterInfo } from "../types/printer";
 import { useSSE } from "./useSSE";
 
-// ── Types ──
-
-export interface PrinterInfo {
-  id: string;
-  name: string;
-  model: string;
-  default_label_size?: string;
-}
+export type { PrinterInfo };
 
 export interface LabelStatus {
   model_name: string;
@@ -134,7 +128,7 @@ export function usePrinterStatus(
 
   const fetchPrinterList = useCallback(async (): Promise<PrinterInfo[]> => {
     const data = await printerApi.list();
-    return data.printers || [];
+    return (data.printers || []).map((p) => normalizePrinter(p));
   }, []);
 
   const autoSelectPrinter = useCallback((list: PrinterInfo[]) => {
@@ -248,7 +242,9 @@ export function usePrinterStatus(
   useSSE({
     events: {
       printers: (data) => {
-        const list = (data as { printers: PrinterInfo[] }).printers || [];
+        const list = ((data as { printers: PrinterInfo[] }).printers || []).map((p) =>
+          normalizePrinter(p),
+        );
         setPrinters(list);
 
         if (!hasInitialized.current && list.length > 0) {

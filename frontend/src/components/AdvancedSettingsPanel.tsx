@@ -9,11 +9,11 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import LabelSizeSelector from "./LabelSizeSelector";
 import { RefreshCw, RotateCcw } from "lucide-react";
-import type { PrinterInfo } from "../hooks/usePrinterStatus";
+import type { PrinterInfo } from "../types/printer";
 
 interface AdvancedSettingsPanelProps {
   printers: PrinterInfo[];
-  selectedPrinter: { id: string; name: string };
+  selectedPrinter: PrinterInfo;
   onSelectPrinter: (id: string) => void;
   settingsMode: "auto" | "manual";
   onSettingsModeChange: (mode: "auto" | "manual") => void;

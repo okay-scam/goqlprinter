@@ -5,6 +5,7 @@ import {
   DEFAULT_LABEL_SIZE,
   DEFAULT_DIMENSIONS,
 } from "../constants";
+import { normalizePrinter, type PrinterInfo } from "../types/printer";
 
 // ── Types ──
 
@@ -21,7 +22,7 @@ export interface LabelDimensions {
 
 export interface LabelSettings {
   // Printer
-  selectedPrinter: { id: string; name: string };
+  selectedPrinter: PrinterInfo;
   selectedLabelSize: string;
   selectedOrientation: string;
   settingsMode: "auto" | "manual";
@@ -53,7 +54,7 @@ export interface LabelSettings {
 // ── Actions ──
 
 export type LabelSettingsAction =
-  | { type: "SET_PRINTER"; payload: { id: string; name: string } }
+  | { type: "SET_PRINTER"; payload: PrinterInfo }
   | { type: "SET_LABEL_SIZE"; payload: { id: string; dimensions: LabelDimensions } }
   | { type: "SET_ORIENTATION"; payload: string }
   | { type: "SET_SETTINGS_MODE"; payload: "auto" | "manual" }
@@ -103,9 +104,10 @@ function migrateFromOldFormat(saved: Record<string, unknown>): LabelSettings {
   // Detect old format: has flat dimension keys like labelWidth
   if ("labelWidth" in saved && !("dimensions" in saved)) {
     return {
-      selectedPrinter:
-        (saved.selectedPrinter as { id: string; name: string }) ||
-        DEFAULT_SETTINGS.selectedPrinter,
+      selectedPrinter: normalizePrinter(
+        (saved.selectedPrinter as Partial<PrinterInfo> & Pick<PrinterInfo, "id" | "name">) ||
+          DEFAULT_SETTINGS.selectedPrinter,
+      ),
       selectedLabelSize:
         (saved.selectedLabelSize as string) || DEFAULT_SETTINGS.selectedLabelSize,
       selectedOrientation:
@@ -151,8 +153,11 @@ function migrateFromOldFormat(saved: Record<string, unknown>): LabelSettings {
     };
   }
 
-  // New format — merge with defaults for any missing keys
-  return { ...DEFAULT_SETTINGS, ...(saved as Partial<LabelSettings>) };
+  const merged = { ...DEFAULT_SETTINGS, ...(saved as Partial<LabelSettings>) };
+  if (merged.selectedPrinter) {
+    merged.selectedPrinter = normalizePrinter(merged.selectedPrinter);
+  }
+  return merged;
 }
 
 function loadInitialState(): LabelSettings {

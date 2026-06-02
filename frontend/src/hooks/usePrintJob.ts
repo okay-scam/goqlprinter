@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import usePrinterRecovery from "./usePrinterRecovery";
 import type { LabelSettings } from "./useLabelSettings";
-import type { PrinterInfo } from "./usePrinterStatus";
+import type { PrinterInfo } from "../types/printer";
 import { ApiError } from "../api/client";
 import { printApi } from "../api/endpoints";
 

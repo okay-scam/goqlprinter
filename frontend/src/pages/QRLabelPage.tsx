@@ -28,22 +28,23 @@ import { usePrinterStatus } from "../hooks/usePrinterStatus";
 import { usePrintJob } from "../hooks/usePrintJob";
 import { DEFAULT_SETTINGS } from "../hooks/useLabelSettings";
 import type { LabelSettings } from "../hooks/useLabelSettings";
+import { FILE_PRINTER } from "../constants";
+import type { PrinterInfo } from "../types/printer";
+import { normalizePrinter } from "../types/printer";
 import { RefreshCw } from "lucide-react";
 
 interface Settings {
-  selectedPrinter: { id: string; name: string };
+  selectedPrinter: PrinterInfo;
   selectedLabelSize: string;
   qrData: string;
   settingsMode?: "auto" | "manual";
 }
-
-const DEFAULT_PRINTER = { id: "file", name: "Print to File" };
 const DEFAULT_LABEL_SIZE = "62x29";
 
 function loadSettings(): Settings {
   if (typeof window === 'undefined') {
     return {
-      selectedPrinter: DEFAULT_PRINTER,
+      selectedPrinter: FILE_PRINTER,
       selectedLabelSize: DEFAULT_LABEL_SIZE,
       qrData: "",
       settingsMode: "auto"
@@ -56,14 +57,15 @@ function loadSettings(): Settings {
       const parsed = JSON.parse(saved);
       return {
         ...parsed,
-        settingsMode: parsed.settingsMode || "auto"
+        selectedPrinter: normalizePrinter(parsed.selectedPrinter ?? FILE_PRINTER),
+        settingsMode: parsed.settingsMode || "auto",
       };
     } catch {
       localStorage.removeItem("qrLabelSettings");
     }
   }
   return {
-    selectedPrinter: DEFAULT_PRINTER,
+    selectedPrinter: FILE_PRINTER,
     selectedLabelSize: DEFAULT_LABEL_SIZE,
     qrData: "",
     settingsMode: "auto"
@@ -78,7 +80,7 @@ export default function QRLabelPage() {
   const [settings, setSettings] = useState<Settings>(loadSettings());
   const { selectedPrinter, selectedLabelSize, qrData, settingsMode = "auto" } = settings;
 
-  const setSelectedPrinter = useCallback((printer: { id: string; name: string }) => {
+  const setSelectedPrinter = useCallback((printer: PrinterInfo) => {
     setSettings(prev => ({ ...prev, selectedPrinter: printer }));
   }, []);
 
@@ -128,7 +130,7 @@ export default function QRLabelPage() {
 
   const confirmResetSettings = () => {
     setSettings({
-      selectedPrinter: DEFAULT_PRINTER,
+      selectedPrinter: FILE_PRINTER,
       selectedLabelSize: DEFAULT_LABEL_SIZE,
       qrData: ""
     });
