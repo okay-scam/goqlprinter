@@ -48,7 +48,13 @@ This starts two servers concurrently:
 
 Open http://localhost:5173 in your browser during development. In production, the binary serves everything from port 8000.
 
-**Docker:** run `docker compose up -d`, then open http://localhost:8000.
+### Docker
+
+```bash
+docker compose up -d
+```
+
+Open http://localhost:8000. Optional config: `./config/config.json` (mounted read-only). For USB printer access on Linux, see comments in `docker-compose.yml`.
 
 ## Building
 
