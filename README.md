@@ -48,6 +48,8 @@ This starts two servers concurrently:
 
 Open http://localhost:5173 in your browser during development. In production, the binary serves everything from port 8000.
 
+**Docker:** run `docker compose up -d`, then open http://localhost:8000.
+
 ## Building
 
 ```bash
