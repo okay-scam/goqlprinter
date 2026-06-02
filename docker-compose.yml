@@ -7,7 +7,8 @@ services:
       LABELPRINTER_SERVER_HOST: "0.0.0.0"
       LABELPRINTER_SERVER_PORT: "8000"
     restart: unless-stopped
-    # USB printing on Linux host (opt-in):
+    volumes:
+      - ./config/config.json:/app/config/config.json:ro
+      # USB (Linux only): uncomment next line and add privileged: true below
+      # - /dev:/dev
     # privileged: true
-    # volumes:
-    #   - /dev:/dev
